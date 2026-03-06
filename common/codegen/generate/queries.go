@@ -3,7 +3,7 @@ package generate
 import (
 	"time"
 
-	"github.com/jghiloni/coredns-pg/common/dns"
+	"github.com/jghiloni/coredns-pg/common/resolve"
 	"gorm.io/gen"
 )
 
@@ -22,7 +22,7 @@ type DNSRecordQueries interface {
 	// 	)
 	// ) LIMIT 1
 	//
-	ResolveRequest(request string, recordType dns.RecordType) (gen.T, error)
+	ResolveRequest(request string, recordType resolve.RecordType) (gen.T, error)
 
 	// GetZoneRecords
 	//
