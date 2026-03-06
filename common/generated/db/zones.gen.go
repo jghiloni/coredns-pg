@@ -6,6 +6,7 @@ package db
 
 import (
 	"context"
+	"strings"
 
 	"gorm.io/gorm"
 
@@ -13,6 +14,8 @@ import (
 	"gorm.io/gen/field"
 
 	"github.com/jghiloni/coredns-pg/common/generated/tables"
+
+	"time"
 )
 
 func newZone(db *gorm.DB, opts ...gen.DOOption) zone {
@@ -109,6 +112,24 @@ type zoneDo struct {
 }
 type IZoneDo interface {
 	gen.IGenericsDo[IZoneDo, *tables.Zone]
+	GetRecentlyDeleted(oldest time.Time) (result []tables.Zone, err error)
+}
+
+// GetRecentlyDeleted
+//
+// SELECT * FROM @@table WHERE deleted_at IS NOT NULL AND deleted_at > @oldest ORDER BY deleted_at DESC
+func (z zoneDo) GetRecentlyDeleted(oldest time.Time) (result []tables.Zone, err error) {
+	var params []interface{}
+
+	var generateSQL strings.Builder
+	params = append(params, oldest)
+	generateSQL.WriteString("SELECT * FROM zones WHERE deleted_at IS NOT NULL AND deleted_at > ? ORDER BY deleted_at DESC ")
+
+	var executeSQL *gorm.DB
+	executeSQL = z.UnderlyingDB().Raw(generateSQL.String(), params...).Find(&result) // ignore_security_alert
+	err = executeSQL.Error
+
+	return
 }
 
 func (z *zoneDo) withDO(do gen.Dao) IZoneDo {

@@ -27,14 +27,15 @@ func ORMCode(ctx context.Context, generator *gen.Generator) (err error) {
 		}
 	}()
 
-	generator.WithImportPkgPath("github.com/jghiloni/coredns-pg/common")
-	generator.ApplyBasic(
-		generator.GenerateModel("zones", globalGenColumnOptions...),
+	generator.WithImportPkgPath("github.com/jghiloni/coredns-pg/common/dns")
+	generator.ApplyInterface(func(DNSZoneQueries) {}, generator.GenerateModel("zones", globalGenColumnOptions...))
+
+	generator.ApplyInterface(func(DNSRecordQueries) {},
 		generator.GenerateModel("records",
 			append(globalGenColumnOptions,
-				gen.FieldType("id", "uint"),
-				gen.FieldType("content", "common.DNSRecordContent"),
-				gen.FieldType("record_type", "common.RecordType"),
+				gen.FieldGORMTag("id", makeColumnReadOnly),
+				gen.FieldType("content", "dns.DNSRecordContent"),
+				gen.FieldType("record_type", "dns.RecordType"),
 				gen.FieldType("ttl", "uint"),
 				gen.FieldGORMTag("content", func(tag field.GormTag) field.GormTag {
 					return tag.Set("type", "jsonb")
