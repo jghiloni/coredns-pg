@@ -7,7 +7,7 @@ package tables
 import (
 	"time"
 
-	"github.com/jghiloni/coredns-pg/common"
+	"github.com/jghiloni/coredns-pg/common/dns"
 	"gorm.io/gorm"
 )
 
@@ -15,15 +15,15 @@ const TableNameRecord = "records"
 
 // Record mapped from table <records>
 type Record struct {
-	ID         uint                    `gorm:"column:id;primaryKey;autoIncrement:true" json:"id,omitempty"`
-	Name       string                  `gorm:"column:name;not null;uniqueIndex:uidx_fqdn,priority:1" json:"name,omitempty"`
-	Zone       string                  `gorm:"column:zone;not null;uniqueIndex:uidx_fqdn,priority:2" json:"zone,omitempty"`
-	TTL        uint                    `gorm:"column:ttl;not null;default:300" json:"ttl,omitempty"`
-	Content    common.DNSRecordContent `gorm:"column:content;type:jsonb;not null;default:{}" json:"content,omitempty"`
-	RecordType common.RecordType       `gorm:"column:record_type;type:record_type;not null" json:"record_type,omitempty"`
-	CreatedAt  time.Time               `gorm:"column:created_at;not null;index:idx_records_created_at,priority:1;default:CURRENT_TIMESTAMP;->" json:"created_at,omitempty"`
-	UpdatedAt  time.Time               `gorm:"column:updated_at;not null;index:idx_records_updated_at,priority:1;default:CURRENT_TIMESTAMP;->" json:"updated_at,omitempty"`
-	DeletedAt  gorm.DeletedAt          `gorm:"column:deleted_at;index:idx_records_deleted_at,priority:1;->" json:"deleted_at,omitempty"`
+	ID         string               `gorm:"column:id;primaryKey;default:uuidv7();->" json:"id,omitempty"`
+	Name       string               `gorm:"column:name;not null;uniqueIndex:uidx_fqdn,priority:1" json:"name,omitempty"`
+	Zone       string               `gorm:"column:zone;not null;uniqueIndex:uidx_fqdn,priority:2" json:"zone,omitempty"`
+	TTL        uint                 `gorm:"column:ttl;not null;default:300" json:"ttl,omitempty"`
+	Content    dns.DNSRecordContent `gorm:"column:content;type:jsonb;not null;default:{}" json:"content,omitempty"`
+	RecordType dns.RecordType       `gorm:"column:record_type;type:record_type;not null" json:"record_type,omitempty"`
+	CreatedAt  time.Time            `gorm:"column:created_at;not null;index:idx_records_created_at,priority:1;default:CURRENT_TIMESTAMP;->" json:"created_at,omitempty"`
+	UpdatedAt  time.Time            `gorm:"column:updated_at;not null;index:idx_records_updated_at,priority:1;default:CURRENT_TIMESTAMP;->" json:"updated_at,omitempty"`
+	DeletedAt  gorm.DeletedAt       `gorm:"column:deleted_at;index:idx_records_deleted_at,priority:1;->" json:"deleted_at,omitempty"`
 }
 
 // TableName Record's table name

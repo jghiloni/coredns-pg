@@ -1,4 +1,4 @@
-package common
+package dns
 
 import (
 	"database/sql/driver"

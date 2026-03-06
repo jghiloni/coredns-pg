@@ -12,13 +12,14 @@ import (
 	"github.com/jghiloni/coredns-pg/common/codegen/generate"
 	"github.com/jghiloni/coredns-pg/common/config"
 	"github.com/lmittmann/tint"
+	"gorm.io/driver/postgres"
 	"gorm.io/gen"
 	"gorm.io/gorm"
 )
 
 type generatorArgs struct {
-	config.DatabaseConfigFragment
-	UseTemporaryDB bool `required:"" group:"Connection Info" xor:"Connection Info" help:"Use a temporary database to generate code. Requires a container runtime."`
+	Database       config.DatabaseConfig `required:"" group:"Connection Info" xor:"Connection Info" embed:"" env_prefix:"COREDNS_POSTGRES_DATABASE_" prefix:"database."`
+	UseTemporaryDB bool                  `required:"" group:"Connection Info" xor:"Connection Info" help:"Use a temporary database to generate code. Requires a container runtime."`
 }
 
 func main() {
@@ -44,7 +45,7 @@ func main() {
 	generator := gen.NewGenerator(gen.Config{
 		OutPath:           "generated/db",
 		ModelPkgPath:      "generated/tables",
-		WithUnitTest:      true,
+		WithUnitTest:      false,
 		FieldNullable:     false,
 		FieldCoverable:    false,
 		FieldSignable:     true,
@@ -82,6 +83,6 @@ func getDB(ctx context.Context, args generatorArgs) (*gorm.DB, io.Closer, error)
 		return nil, globalNopCloser, err
 	}
 
-	db, err := args.OpenDB()
+	db, err := gorm.Open(postgres.Open(args.Database.ConnectionString()))
 	return db, globalNopCloser, err
 }

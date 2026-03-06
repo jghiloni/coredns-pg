@@ -6,13 +6,18 @@ package db
 
 import (
 	"context"
+	"strings"
 
 	"gorm.io/gorm"
 
 	"gorm.io/gen"
 	"gorm.io/gen/field"
 
+	"github.com/jghiloni/coredns-pg/common/dns"
+
 	"github.com/jghiloni/coredns-pg/common/generated/tables"
+
+	"time"
 )
 
 func newRecord(db *gorm.DB, opts ...gen.DOOption) record {
@@ -25,7 +30,7 @@ func newRecord(db *gorm.DB, opts ...gen.DOOption) record {
 
 	tableName := _record.recordDo.TableName()
 	_record.ALL = field.NewAsterisk(tableName)
-	_record.ID = field.NewUint(tableName, "id")
+	_record.ID = field.NewString(tableName, "id")
 	_record.Name = field.NewString(tableName, "name")
 	_record.Zone = field.NewString(tableName, "zone")
 	_record.TTL = field.NewUint(tableName, "ttl")
@@ -44,7 +49,7 @@ type record struct {
 	recordDo recordDo
 
 	ALL        field.Asterisk
-	ID         field.Uint
+	ID         field.String
 	Name       field.String
 	Zone       field.String
 	TTL        field.Uint
@@ -69,7 +74,7 @@ func (r record) As(alias string) *record {
 
 func (r *record) updateTableName(table string) *record {
 	r.ALL = field.NewAsterisk(table)
-	r.ID = field.NewUint(table, "id")
+	r.ID = field.NewString(table, "id")
 	r.Name = field.NewString(table, "name")
 	r.Zone = field.NewString(table, "zone")
 	r.TTL = field.NewUint(table, "ttl")
@@ -129,6 +134,73 @@ type recordDo struct {
 }
 type IRecordDo interface {
 	gen.IGenericsDo[IRecordDo, *tables.Record]
+	GetRecentlyDeleted(oldest time.Time) (result []tables.Record, err error)
+	ResolveRequest(request string, recordType dns.RecordType) (result tables.Record, err error)
+	GetZoneRecords(zone string) (result []tables.Record, err error)
+}
+
+// GetRecentlyDeleted
+//
+// SELECT * FROM @@table WHERE deleted_at IS NOT NULL AND deleted_at > @oldest ORDER BY deleted_at DESC
+func (r recordDo) GetRecentlyDeleted(oldest time.Time) (result []tables.Record, err error) {
+	var params []interface{}
+
+	var generateSQL strings.Builder
+	params = append(params, oldest)
+	generateSQL.WriteString("SELECT * FROM records WHERE deleted_at IS NOT NULL AND deleted_at > ? ORDER BY deleted_at DESC ")
+
+	var executeSQL *gorm.DB
+	executeSQL = r.UnderlyingDB().Raw(generateSQL.String(), params...).Find(&result) // ignore_security_alert
+	err = executeSQL.Error
+
+	return
+}
+
+// ResolveRequest
+//
+// SELECT r.* FROM records r INNER JOIN zones z ON r.zone = z.fqdn WHERE (
+//
+//	r.record_type = @recordType AND r.deleted_at IS NULL AND z.deleted_at IS NULL AND
+//	(
+//		(r.name = '@' AND r.zone = @request) OR (@request LIKE REPLACE(r.name, '*', '%') || '.' || r.zone)
+//	)
+//
+// ) LIMIT 1
+func (r recordDo) ResolveRequest(request string, recordType dns.RecordType) (result tables.Record, err error) {
+	var params []interface{}
+
+	var generateSQL strings.Builder
+	params = append(params, recordType)
+	params = append(params, request)
+	params = append(params, request)
+	generateSQL.WriteString("SELECT r.* FROM records r INNER JOIN zones z ON r.zone = z.fqdn WHERE ( r.record_type = ? AND r.deleted_at IS NULL AND z.deleted_at IS NULL AND ( (r.name = '@' AND r.zone = ?) OR (? LIKE REPLACE(r.name, '*', '%') || '.' || r.zone) ) ) LIMIT 1 ")
+
+	var executeSQL *gorm.DB
+	executeSQL = r.UnderlyingDB().Raw(generateSQL.String(), params...).Take(&result) // ignore_security_alert
+	err = executeSQL.Error
+
+	return
+}
+
+// GetZoneRecords
+//
+// SELECT r.* FROM records r INNER JOIN zones z ON r.zone = z.fqdn WHERE (
+//
+//	r.zone = @zone AND r.deleted_at IS NULL AND z.deleted_at IS NULL
+//
+// )
+func (r recordDo) GetZoneRecords(zone string) (result []tables.Record, err error) {
+	var params []interface{}
+
+	var generateSQL strings.Builder
+	params = append(params, zone)
+	generateSQL.WriteString("SELECT r.* FROM records r INNER JOIN zones z ON r.zone = z.fqdn WHERE ( r.zone = ? AND r.deleted_at IS NULL AND z.deleted_at IS NULL ) ")
+
+	var executeSQL *gorm.DB
+	executeSQL = r.UnderlyingDB().Raw(generateSQL.String(), params...).Find(&result) // ignore_security_alert
+	err = executeSQL.Error
+
+	return
 }
 
 func (r *recordDo) withDO(do gen.Dao) IRecordDo {
