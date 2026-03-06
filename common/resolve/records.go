@@ -1,4 +1,4 @@
-package dns
+package resolve
 
 import (
 	"encoding/json"

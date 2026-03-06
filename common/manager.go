@@ -9,9 +9,9 @@ import (
 	"time"
 
 	"github.com/jghiloni/coredns-pg/common/config"
-	"github.com/jghiloni/coredns-pg/common/dns"
 	"github.com/jghiloni/coredns-pg/common/generated/db"
 	"github.com/jghiloni/coredns-pg/common/generated/tables"
+	"github.com/jghiloni/coredns-pg/common/resolve"
 	"gorm.io/gorm"
 )
 
@@ -31,14 +31,14 @@ var (
 
 type UpdateRecordRequest struct {
 	NewName     string
-	NewTTL      uint
-	NewContents dns.DNSRecordContent
+	NewTTL      uint32
+	NewContents resolve.DNSRecordContent
 }
 
 type DNSQuerier interface {
 	GetRecord(ctx context.Context, id string) (tables.Record, error)
 	IsZoneValid(ctx context.Context, fqdn string) (bool, error)
-	ResolveRequest(ctx context.Context, request string, recordType dns.RecordType) (dns.DNSRecordContent, error)
+	ResolveRequest(ctx context.Context, request string, recordType resolve.RecordType) (*resolve.ResolutionResponse, error)
 	ListZoneRecords(ctx context.Context, zoneFQDN string) ([]tables.Record, error)
 	ListZones(ctx context.Context) ([]tables.Zone, error)
 	ListRecentlyDeletedRecords(ctx context.Context, since time.Duration) ([]tables.Record, error)
@@ -49,7 +49,7 @@ type DNSManager interface {
 	DNSQuerier
 	CreateZone(ctx context.Context, fqdn string) error
 	DeleteZone(ctx context.Context, fqdn string) error
-	CreateRecord(ctx context.Context, name string, zone string, ttl uint, recordType dns.RecordType, contents dns.DNSRecordContent) (tables.Record, error)
+	CreateRecord(ctx context.Context, name string, zone string, ttl uint, recordType resolve.RecordType, contents resolve.DNSRecordContent) (tables.Record, error)
 	UpdateRecord(ctx context.Context, id string, record UpdateRecordRequest) error
 	DeleteRecord(ctx context.Context, id string) error
 }
@@ -79,7 +79,7 @@ func (d *dnsOrmManager) GetRecord(ctx context.Context, id string) (tables.Record
 	return gorm.G[tables.Record](db.Q.UnderlyingDB()).Where("id = ? AND deleted_at is null", id).First(ctx)
 }
 
-func (d *dnsOrmManager) ResolveRequest(ctx context.Context, request string, recordType dns.RecordType) (dns.DNSRecordContent, error) {
+func (d *dnsOrmManager) ResolveRequest(ctx context.Context, request string, recordType resolve.RecordType) (*resolve.ResolutionResponse, error) {
 	record, err := db.Record.WithContext(ctx).ResolveRequest(request, recordType)
 	if err != nil {
 		return nil, err
@@ -90,7 +90,11 @@ func (d *dnsOrmManager) ResolveRequest(ctx context.Context, request string, reco
 		return nil, fmt.Errorf("%w: expected type %s, got %s", ErrRecordTypeMismatch, recordType, content.RecordType())
 	}
 
-	return content, nil
+	return &resolve.ResolutionResponse{
+		Query:   request,
+		Content: content,
+		TTL:     record.TTL,
+	}, nil
 }
 
 func (d *dnsOrmManager) ListZoneRecords(ctx context.Context, zoneFQDN string) ([]tables.Record, error) {
@@ -144,7 +148,7 @@ func (d *dnsOrmManager) DeleteZone(ctx context.Context, fqdn string) error {
 	return err
 }
 
-func (d *dnsOrmManager) CreateRecord(ctx context.Context, name string, zone string, ttl uint, recordType dns.RecordType, contents dns.DNSRecordContent) (tables.Record, error) {
+func (d *dnsOrmManager) CreateRecord(ctx context.Context, name string, zone string, ttl uint, recordType resolve.RecordType, contents resolve.DNSRecordContent) (tables.Record, error) {
 	isValid, err := d.IsZoneValid(ctx, zone)
 	if !isValid {
 		if err != nil {
@@ -165,7 +169,7 @@ func (d *dnsOrmManager) CreateRecord(ctx context.Context, name string, zone stri
 	record := tables.Record{
 		Name:       name,
 		Zone:       zone,
-		TTL:        uint(ttl),
+		TTL:        uint32(ttl),
 		Content:    contents,
 		RecordType: recordType,
 	}

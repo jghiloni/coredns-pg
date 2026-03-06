@@ -1,4 +1,4 @@
-package dns
+package resolve
 
 import (
 	"database/sql/driver"
@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-var ErrInvalidRecordType = errors.New("unsupported dns record type")
+var ErrInvalidRecordType = errors.New("unsupported resolve record type")
 
 type RecordType string
 

@@ -13,7 +13,7 @@ import (
 	"gorm.io/gen"
 	"gorm.io/gen/field"
 
-	"github.com/jghiloni/coredns-pg/common/dns"
+	"github.com/jghiloni/coredns-pg/common/resolve"
 
 	"github.com/jghiloni/coredns-pg/common/generated/tables"
 
@@ -33,7 +33,7 @@ func newRecord(db *gorm.DB, opts ...gen.DOOption) record {
 	_record.ID = field.NewString(tableName, "id")
 	_record.Name = field.NewString(tableName, "name")
 	_record.Zone = field.NewString(tableName, "zone")
-	_record.TTL = field.NewUint(tableName, "ttl")
+	_record.TTL = field.NewUint32(tableName, "ttl")
 	_record.Content = field.NewField(tableName, "content")
 	_record.RecordType = field.NewField(tableName, "record_type")
 	_record.CreatedAt = field.NewTime(tableName, "created_at")
@@ -52,7 +52,7 @@ type record struct {
 	ID         field.String
 	Name       field.String
 	Zone       field.String
-	TTL        field.Uint
+	TTL        field.Uint32
 	Content    field.Field
 	RecordType field.Field
 	CreatedAt  field.Time
@@ -77,7 +77,7 @@ func (r *record) updateTableName(table string) *record {
 	r.ID = field.NewString(table, "id")
 	r.Name = field.NewString(table, "name")
 	r.Zone = field.NewString(table, "zone")
-	r.TTL = field.NewUint(table, "ttl")
+	r.TTL = field.NewUint32(table, "ttl")
 	r.Content = field.NewField(table, "content")
 	r.RecordType = field.NewField(table, "record_type")
 	r.CreatedAt = field.NewTime(table, "created_at")
@@ -135,7 +135,7 @@ type recordDo struct {
 type IRecordDo interface {
 	gen.IGenericsDo[IRecordDo, *tables.Record]
 	GetRecentlyDeleted(oldest time.Time) (result []tables.Record, err error)
-	ResolveRequest(request string, recordType dns.RecordType) (result tables.Record, err error)
+	ResolveRequest(request string, recordType resolve.RecordType) (result tables.Record, err error)
 	GetZoneRecords(zone string) (result []tables.Record, err error)
 }
 
@@ -166,7 +166,7 @@ func (r recordDo) GetRecentlyDeleted(oldest time.Time) (result []tables.Record, 
 //	)
 //
 // ) LIMIT 1
-func (r recordDo) ResolveRequest(request string, recordType dns.RecordType) (result tables.Record, err error) {
+func (r recordDo) ResolveRequest(request string, recordType resolve.RecordType) (result tables.Record, err error) {
 	var params []interface{}
 
 	var generateSQL strings.Builder
