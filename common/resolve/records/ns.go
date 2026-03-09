@@ -11,6 +11,8 @@ type NSRecord struct {
 	Host string `json:"host"`
 }
 
+func (*NSRecord) afr() {}
+
 func (*NSRecord) RecordType() RecordType {
 	return NS
 }

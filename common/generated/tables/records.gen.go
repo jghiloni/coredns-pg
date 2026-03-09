@@ -16,8 +16,8 @@ const TableNameRecord = "records"
 // Record mapped from table <records>
 type Record struct {
 	ID         string                   `gorm:"column:id;primaryKey;default:uuidv7();->" json:"id,omitempty"`
-	Name       string                   `gorm:"column:name;not null;uniqueIndex:uidx_fqdn,priority:1" json:"name,omitempty"`
-	Zone       string                   `gorm:"column:zone;not null;uniqueIndex:uidx_fqdn,priority:2" json:"zone,omitempty"`
+	Name       string                   `gorm:"column:name;not null" json:"name,omitempty"`
+	Zone       string                   `gorm:"column:zone;not null" json:"zone,omitempty"`
 	TTL        uint32                   `gorm:"column:ttl;not null;default:300" json:"ttl,omitempty"`
 	Content    records.DNSRecordContent `gorm:"column:content;type:jsonb;not null;default:{}" json:"content,omitempty"`
 	RecordType records.RecordType       `gorm:"column:record_type;type:record_type;not null" json:"record_type,omitempty"`

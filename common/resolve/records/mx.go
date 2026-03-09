@@ -12,6 +12,8 @@ type MXRecord struct {
 	Preference uint16 `json:"preference"`
 }
 
+func (*MXRecord) afr() {}
+
 func (*MXRecord) RecordType() RecordType {
 	return MX
 }

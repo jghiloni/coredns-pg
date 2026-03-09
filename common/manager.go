@@ -15,7 +15,6 @@ import (
 	"github.com/jghiloni/coredns-pg/common/config"
 	"github.com/jghiloni/coredns-pg/common/generated/db"
 	"github.com/jghiloni/coredns-pg/common/generated/tables"
-	"github.com/jghiloni/coredns-pg/common/resolve"
 )
 
 var (
@@ -38,6 +37,13 @@ type UpdateRecordRequest struct {
 	NewContents records.DNSRecordContent
 }
 
+type ResolutionResponse struct {
+	Query                   string
+	Records                 []*records.DNSRecord
+	RecordType records.RecordType
+	AdditionalFetchRequired bool
+}
+
 type DNSQuerier interface {
 	GetRecord(ctx context.Context, id string) (tables.Record, error)
 	IsZoneValid(ctx context.Context, fqdn string) (bool, error)
@@ -45,7 +51,7 @@ type DNSQuerier interface {
 		ctx context.Context,
 		request string,
 		recordType records.RecordType,
-	) (*resolve.ResolutionResponse, error)
+	) (*ResolutionResponse, error)
 	ListZoneRecords(ctx context.Context, zoneFQDN string) ([]tables.Record, error)
 	ListZones(ctx context.Context) ([]tables.Zone, error)
 	ListRecentlyDeletedRecords(ctx context.Context, since time.Duration) ([]tables.Record, error)
@@ -97,58 +103,45 @@ func (d *dnsOrmManager) ResolveRequest(
 	ctx context.Context,
 	request string,
 	recordType records.RecordType,
-) (*resolve.ResolutionResponse, error) {
-	dbRecord, err := db.Record.WithContext(ctx).ResolveRequest(request, recordType)
+) (*ResolutionResponse, error) {
+	winner, err := db.Record.WithContext(ctx).GetMostSpecificRecord(request, recordType)
 	if err != nil {
 		return nil, err
 	}
 
-	record := &records.DNSRecord{
-		Name:    dbRecord.Name,
-		Zone:    dbRecord.Zone,
-		TTL:     dbRecord.TTL,
-		Content: dbRecord.Content,
-		Type:    dbRecord.RecordType,
-	}
-
-	dr, fetchExtra, err := record.AsResourceRecord()
+	rows, err := db.Record.WithContext(ctx).ResolveRequest(winner.Name, winner.Zone, recordType)
 	if err != nil {
 		return nil, err
 	}
 
-	var extras []dns.RR
-
-	if fetchExtra {
-		dbRecords, err := db.Record.WithContext(ctx).ResolveRequests(request, records.A, records.AAAA, records.CNAME)
-		if err != nil {
-			return nil, err
-		}
-
-		for _, dbr := range dbRecords {
-			r := &records.DNSRecord{
-				Name:    dbr.Name,
-				Zone:    dbr.Zone,
-				TTL:     dbr.TTL,
-				Content: dbr.Content,
-				Type:    dbr.RecordType,
-			}
-
-			extraDR, _, err := r.AsResourceRecord()
-			if err != nil {
-				return nil, err
-			}
-
-			if extraDR != nil {
-				extras = append(extras, extraDR)
-			}
-		}
+	response := &ResolutionResponse{
+		Query: request,
 	}
 
-	return &resolve.ResolutionResponse{
-		Query:        request,
-		Record:       dr,
-		ExtraRecords: extras,
-	}, nil
+	for _, dbRecord := range rows {
+		record := &records.DNSRecord{
+			Name:    dbRecord.Name,
+			Zone:    dbRecord.Zone,
+			TTL:     dbRecord.TTL,
+			Content: dbRecord.Content,
+			Type:    dbRecord.RecordType,
+		}
+
+		response.Records = append(response.Records, record)
+
+		if string(response.RecordType) == "" {
+			response.RecordType = record.Type
+		}
+
+		if response.RecordType != record.Type {
+			return nil, ErrRecordTypeMismatch
+		}
+
+		_, isAfr := dbRecord.Content.(records.AdditonalFetchRequired)
+		response.AdditionalFetchRequired = response.AdditionalFetchRequired || isAfr
+	}
+
+	return response, nil
 }
 
 func (d *dnsOrmManager) ListZoneRecords(ctx context.Context, zoneFQDN string) ([]tables.Record, error) {

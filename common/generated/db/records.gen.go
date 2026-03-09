@@ -135,8 +135,8 @@ type recordDo struct {
 type IRecordDo interface {
 	gen.IGenericsDo[IRecordDo, *tables.Record]
 	GetRecentlyDeleted(oldest time.Time) (result []tables.Record, err error)
-	ResolveRequest(request string, recordType records.RecordType) (result tables.Record, err error)
-	ResolveRequests(request string, recordTypes ...records.RecordType) (result []tables.Record, err error)
+	GetMostSpecificRecord(request string, recordType records.RecordType) (result tables.Record, err error)
+	ResolveRequest(name string, zone string, recordType records.RecordType) (result []tables.Record, err error)
 	GetZoneRecords(zone string) (result []tables.Record, err error)
 }
 
@@ -157,24 +157,24 @@ func (r recordDo) GetRecentlyDeleted(oldest time.Time) (result []tables.Record, 
 	return
 }
 
-// ResolveRequest
+// GetMostSpecificRecord
 //
-// SELECT r.* FROM records r INNER JOIN zones z ON r.zone = z.fqdn WHERE (
+// SELECT r.id, r.name, r.zone FROM records r INNER JOIN zones z ON r.zone = z.fqdn WHERE (
 //
 //	r.record_type = @recordType AND r.deleted_at IS NULL AND z.deleted_at IS NULL AND
 //	(
 //		(r.name = '@' AND r.zone = @request) OR (@request LIKE REPLACE(r.name, '*', '%') || '.' || r.zone)
 //	)
 //
-// ) LIMIT 1
-func (r recordDo) ResolveRequest(request string, recordType records.RecordType) (result tables.Record, err error) {
+// ) ORDER BY LENGTH(r.zone) DESC, r.name DESC LIMIT 1
+func (r recordDo) GetMostSpecificRecord(request string, recordType records.RecordType) (result tables.Record, err error) {
 	var params []interface{}
 
 	var generateSQL strings.Builder
 	params = append(params, recordType)
 	params = append(params, request)
 	params = append(params, request)
-	generateSQL.WriteString("SELECT r.* FROM records r INNER JOIN zones z ON r.zone = z.fqdn WHERE ( r.record_type = ? AND r.deleted_at IS NULL AND z.deleted_at IS NULL AND ( (r.name = '@' AND r.zone = ?) OR (? LIKE REPLACE(r.name, '*', '%') || '.' || r.zone) ) ) LIMIT 1 ")
+	generateSQL.WriteString("SELECT r.id, r.name, r.zone FROM records r INNER JOIN zones z ON r.zone = z.fqdn WHERE ( r.record_type = ? AND r.deleted_at IS NULL AND z.deleted_at IS NULL AND ( (r.name = '@' AND r.zone = ?) OR (? LIKE REPLACE(r.name, '*', '%') || '.' || r.zone) ) ) ORDER BY LENGTH(r.zone) DESC, r.name DESC LIMIT 1 ")
 
 	var executeSQL *gorm.DB
 	executeSQL = r.UnderlyingDB().Raw(generateSQL.String(), params...).Take(&result) // ignore_security_alert
@@ -183,24 +183,22 @@ func (r recordDo) ResolveRequest(request string, recordType records.RecordType) 
 	return
 }
 
-// ResolveRequests
+// ResolveRequest
 //
 // SELECT r.* FROM records r INNER JOIN zones z ON r.zone = z.fqdn WHERE (
 //
-//	r.record_type IN @recordTypes AND r.deleted_at IS NULL AND z.deleted_at IS NULL AND
-//	(
-//		(r.name = '@' AND r.zone = @request) OR (@request LIKE REPLACE(r.name, '*', '%') || '.' || r.zone)
-//	)
+//	r.record_type = @recordType AND r.name = @name AND r.zone = @zone
 //
-// ) LIMIT 1
-func (r recordDo) ResolveRequests(request string, recordTypes ...records.RecordType) (result []tables.Record, err error) {
+// AND r.deleted_at IS NULL AND z.deleted_at IS NULL
+// )
+func (r recordDo) ResolveRequest(name string, zone string, recordType records.RecordType) (result []tables.Record, err error) {
 	var params []interface{}
 
 	var generateSQL strings.Builder
-	params = append(params, recordTypes)
-	params = append(params, request)
-	params = append(params, request)
-	generateSQL.WriteString("SELECT r.* FROM records r INNER JOIN zones z ON r.zone = z.fqdn WHERE ( r.record_type IN ? AND r.deleted_at IS NULL AND z.deleted_at IS NULL AND ( (r.name = '@' AND r.zone = ?) OR (? LIKE REPLACE(r.name, '*', '%') || '.' || r.zone) ) ) LIMIT 1 ")
+	params = append(params, recordType)
+	params = append(params, name)
+	params = append(params, zone)
+	generateSQL.WriteString("SELECT r.* FROM records r INNER JOIN zones z ON r.zone = z.fqdn WHERE ( r.record_type = ? AND r.name = ? AND r.zone = ? AND r.deleted_at IS NULL AND z.deleted_at IS NULL ) ")
 
 	var executeSQL *gorm.DB
 	executeSQL = r.UnderlyingDB().Raw(generateSQL.String(), params...).Find(&result) // ignore_security_alert

@@ -19,12 +19,10 @@ CREATE TABLE records
     FOREIGN KEY (zone) REFERENCES zones(fqdn)
 );
 
-CREATE UNIQUE INDEX uidx_fqdn ON records(name, zone);
 -- +goose StatementEnd
 
 -- +goose Down
 -- +goose StatementBegin
-DROP INDEX uidx_fqdn;
 DROP TABLE records;
 DROP TABLE zones;
 DROP TYPE dns_record_type;

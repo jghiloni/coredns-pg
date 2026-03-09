@@ -50,6 +50,10 @@ type DNSRecordContent interface {
 	validate() error
 }
 
+type AdditonalFetchRequired interface {
+	afr()
+}
+
 func (d *DNSRecord) AsResourceRecord() (dns.RR, bool, error) {
 	fqdn := d.fqdn()
 	return d.Content.partialRecord(fqdn, d.GetTTL())
