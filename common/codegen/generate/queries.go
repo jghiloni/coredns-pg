@@ -3,8 +3,9 @@ package generate
 import (
 	"time"
 
-	"github.com/jghiloni/coredns-pg/common/resolve"
 	"gorm.io/gen"
+
+	"github.com/jghiloni/coredns-pg/common/resolve/records"
 )
 
 type DNSRecordQueries interface {
@@ -22,7 +23,19 @@ type DNSRecordQueries interface {
 	// 	)
 	// ) LIMIT 1
 	//
-	ResolveRequest(request string, recordType resolve.RecordType) (gen.T, error)
+	ResolveRequest(request string, recordType records.RecordType) (gen.T, error)
+
+	// ResolveRequests
+	//
+	// SELECT r.* FROM records r INNER JOIN zones z ON r.zone = z.fqdn WHERE (
+	// 	r.record_type IN @recordTypes AND r.deleted_at IS NULL AND z.deleted_at IS NULL AND
+	// 	(
+	// 		(r.name = '@' AND r.zone = @request) OR (@request LIKE REPLACE(r.name, '*', '%') || '.' || r.zone)
+	// 	)
+	// ) LIMIT 1
+	//
+	ResolveRequests(request string, recordTypes ...records.RecordType) ([]gen.T, error)
+
 
 	// GetZoneRecords
 	//

@@ -27,15 +27,15 @@ func ORMCode(ctx context.Context, generator *gen.Generator) (err error) {
 		}
 	}()
 
-	generator.WithImportPkgPath("github.com/jghiloni/coredns-pg/common/resolve")
+	generator.WithImportPkgPath("github.com/jghiloni/coredns-pg/common/resolve/records")
 	generator.ApplyInterface(func(DNSZoneQueries) {}, generator.GenerateModel("zones", globalGenColumnOptions...))
 
 	generator.ApplyInterface(func(DNSRecordQueries) {},
 		generator.GenerateModel("records",
 			append(globalGenColumnOptions,
 				gen.FieldGORMTag("id", makeColumnReadOnly),
-				gen.FieldType("content", "resolve.DNSRecordContent"),
-				gen.FieldType("record_type", "resolve.RecordType"),
+				gen.FieldType("content", "records.DNSRecordContent"),
+				gen.FieldType("record_type", "records.RecordType"),
 				gen.FieldType("ttl", "uint32"),
 				gen.FieldGORMTag("content", func(tag field.GormTag) field.GormTag {
 					return tag.Set("type", "jsonb")
@@ -55,6 +55,7 @@ func ORMCode(ctx context.Context, generator *gen.Generator) (err error) {
 
 	// Execute doesn't return an error, it panics, hence the defer
 	generator.Execute()
+
 	return nil
 }
 

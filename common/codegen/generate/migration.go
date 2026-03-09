@@ -7,12 +7,13 @@ import (
 	"log/slog"
 
 	"github.com/google/uuid"
-	"github.com/jghiloni/coredns-pg/common/migrations"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	"gorm.io/gorm"
 
 	gormpg "gorm.io/driver/postgres"
+
+	"github.com/jghiloni/coredns-pg/common/migrations"
 )
 
 type TemporaryDB struct {
@@ -21,10 +22,12 @@ type TemporaryDB struct {
 }
 
 func CreateTemporaryDB(ctx context.Context) (*TemporaryDB, error) {
-	t := new(TemporaryDB)
 	var err error
 
+	t := new(TemporaryDB)
+
 	slog.Info("Creating Temporary DB")
+
 	if t.tempDBContainer, err = postgres.Run(ctx,
 		"postgres:18-alpine",
 		postgres.WithUsername("postgres"),
@@ -46,13 +49,16 @@ func CreateTemporaryDB(ctx context.Context) (*TemporaryDB, error) {
 
 	err = migrations.RunMigrations(ctx, *t.dbURL)
 	if err != nil {
-		e2 := t.Close()
 		errFmt := "could not run migrations on new database: %w"
 		args := []any{err}
+
+		e2 := t.Close()
 		if e2 != nil {
 			errFmt = errFmt + ". Additionally, an error occurred closing the DB: %w"
+
 			args = append(args, e2)
 		}
+
 		err = fmt.Errorf(errFmt, args...)
 	}
 
@@ -73,7 +79,9 @@ func (t *TemporaryDB) Close() error {
 	if t.tempDBContainer == nil {
 		return nil
 	}
+
 	err := testcontainers.TerminateContainer(t.tempDBContainer)
 	t.tempDBContainer = nil
+
 	return err
 }

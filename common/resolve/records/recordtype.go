@@ -1,4 +1,4 @@
-package resolve
+package records
 
 import (
 	"database/sql/driver"
@@ -34,6 +34,7 @@ func (r *RecordType) Scan(src any) error {
 	}
 
 	*r = rt
+
 	return nil
 }
 
