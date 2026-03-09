@@ -9,6 +9,7 @@ linters:
     - nosprintfhostport
     - tagalign
     - mnd
+    - dupl
   enable:
     - wsl_v5
   settings:

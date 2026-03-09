@@ -1,6 +1,9 @@
 GO ?= $(shell command -v go)
+GOLANGCI_LINT ?= $(shell command -v golangci-lint)
 
-.PHONY: reset-generated generate test
+CITARGETS = run fmt
+
+.PHONY: reset-generated generate ci-run ci-fmt
 
 generate: reset-generated
 	TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock \
@@ -9,5 +12,9 @@ generate: reset-generated
 
 reset-generated:
 	rm -fr ./generated
+
 test:
 	$(GO) test ./...
+
+$(CITARGETS):
+	$(GOLANGCI_LINT) $@

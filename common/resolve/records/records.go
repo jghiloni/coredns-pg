@@ -55,14 +55,6 @@ func (d *DNSRecord) AsResourceRecord() (dns.RR, bool, error) {
 	return d.Content.partialRecord(fqdn, d.GetTTL())
 }
 
-func (d *DNSRecord) fqdn() string {
-	if d.Name == "" || d.Name == "@" { // apex records
-		return dns.Fqdn(d.Zone)
-	}
-
-	return dns.Fqdn(fmt.Sprintf("%s.%s", d.Name, d.Zone))
-}
-
 func (d *DNSRecord) GetTTL() uint32 {
 	if d.TTL < minTTL {
 		d.TTL = defaultTTL
@@ -71,11 +63,19 @@ func (d *DNSRecord) GetTTL() uint32 {
 	return d.TTL
 }
 
+func (d *DNSRecord) fqdn() string {
+	if d.Name == "" || d.Name == "@" { // apex records
+		return dns.Fqdn(d.Zone)
+	}
+
+	return dns.Fqdn(fmt.Sprintf("%s.%s", d.Name, d.Zone))
+}
+
 func getHeader(fqdn string, rrtype uint16, ttl uint32) dns.RR_Header {
 	return dns.RR_Header{
-		Name:     fqdn,
-		Rrtype:   rrtype,
-		Class:    dns.ClassINET,
-		Ttl:      ttl,
+		Name:   fqdn,
+		Rrtype: rrtype,
+		Class:  dns.ClassINET,
+		Ttl:    ttl,
 	}
 }

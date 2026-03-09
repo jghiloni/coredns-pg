@@ -38,7 +38,7 @@ func (a *AAAARecord) partialRecord(fqdn string, ttl uint32) (record dns.RR, fetc
 	}
 
 	return &dns.AAAA{
-		Hdr: getHeader(fqdn, recordTypes[a.RecordType()], ttl),
+		Hdr:  getHeader(fqdn, recordTypes[a.RecordType()], ttl),
 		AAAA: a.IP,
 	}, false, nil
 }

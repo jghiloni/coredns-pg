@@ -36,7 +36,6 @@ type DNSRecordQueries interface {
 	//
 	ResolveRequests(request string, recordTypes ...records.RecordType) ([]gen.T, error)
 
-
 	// GetZoneRecords
 	//
 	// SELECT r.* FROM records r INNER JOIN zones z ON r.zone = z.fqdn WHERE (

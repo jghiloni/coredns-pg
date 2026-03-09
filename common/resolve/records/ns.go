@@ -38,7 +38,7 @@ func (n *NSRecord) partialRecord(fqdn string, ttl uint32) (record dns.RR, fetchE
 
 	return &dns.NS{
 		Hdr: getHeader(fqdn, recordTypes[n.RecordType()], ttl),
-		Ns: n.Host,
+		Ns:  n.Host,
 	}, true, nil
 }
 

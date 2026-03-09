@@ -57,8 +57,11 @@ func (t *TXTRecord) wrapText() []string {
 	reader := strings.NewReader(t.Text)
 
 	line := make([]byte, lineLen)
-	var readLen int
-	var err error
+
+	var (
+		readLen int
+		err     error
+	)
 	for readLen, err = reader.Read(line); readLen == lineLen && err != nil; {
 		lines = append(lines, string(line))
 	}

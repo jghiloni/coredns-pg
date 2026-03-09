@@ -39,7 +39,7 @@ func (c *CAARecord) partialRecord(fqdn string, ttl uint32) (record dns.RR, fetch
 	}
 
 	return &dns.CAA{
-		Hdr: getHeader(fqdn, recordTypes[c.RecordType()], ttl),
+		Hdr:   getHeader(fqdn, recordTypes[c.RecordType()], ttl),
 		Value: c.Value,
 		Tag:   c.Tag,
 		Flag:  c.Flag,

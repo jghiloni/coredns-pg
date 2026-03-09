@@ -117,6 +117,7 @@ func (d *dnsOrmManager) ResolveRequest(
 	}
 
 	var extras []dns.RR
+
 	if fetchExtra {
 		dbRecords, err := db.Record.WithContext(ctx).ResolveRequests(request, records.A, records.AAAA, records.CNAME)
 		if err != nil {

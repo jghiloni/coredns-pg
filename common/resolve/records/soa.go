@@ -34,7 +34,7 @@ func (s *SOARecord) UnmarshalJSON(data []byte) error {
 
 func (s *SOARecord) partialRecord(fqdn string, ttl uint32) (record dns.RR, fetchExtras bool, err error) {
 	ds := &dns.SOA{
-		Hdr: getHeader(fqdn, recordTypes[s.RecordType()], ttl),
+		Hdr:     getHeader(fqdn, recordTypes[s.RecordType()], ttl),
 		Ns:      s.Ns,
 		Mbox:    s.MBox,
 		Refresh: s.Refresh,
