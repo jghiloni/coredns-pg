@@ -9,21 +9,23 @@ import (
 	"time"
 
 	"github.com/alecthomas/kong"
-	"github.com/jghiloni/coredns-pg/common/codegen/generate"
-	"github.com/jghiloni/coredns-pg/common/config"
 	"github.com/lmittmann/tint"
 	"gorm.io/driver/postgres"
 	"gorm.io/gen"
 	"gorm.io/gorm"
+
+	"github.com/jghiloni/coredns-pg/common/codegen/generate"
+	"github.com/jghiloni/coredns-pg/common/config"
 )
 
 type generatorArgs struct {
 	Database       config.DatabaseConfig `required:"" group:"Connection Info" xor:"Connection Info" embed:"" env_prefix:"COREDNS_POSTGRES_DATABASE_" prefix:"database."`
-	UseTemporaryDB bool                  `required:"" group:"Connection Info" xor:"Connection Info" help:"Use a temporary database to generate code. Requires a container runtime."`
+	UseTemporaryDB bool                  `required:"" group:"Connection Info" xor:"Connection Info"                                                                     help:"Use a temporary database to generate code. Requires a container runtime."`
 }
 
 func main() {
 	var cliArgs generatorArgs
+
 	k := kong.Parse(&cliArgs)
 
 	logger := slog.New(tint.NewHandler(k.Stdout, &tint.Options{
@@ -73,16 +75,17 @@ var globalNopCloser nopCloser
 
 func getDB(ctx context.Context, args generatorArgs) (*gorm.DB, io.Closer, error) {
 	// never let the closer return val be nil, just pass globalNopCloser
-
 	if args.UseTemporaryDB {
 		t, err := generate.CreateTemporaryDB(ctx)
 		if err == nil {
 			db, e2 := t.DB()
 			return db, t, e2
 		}
+
 		return nil, globalNopCloser, err
 	}
 
 	db, err := gorm.Open(postgres.Open(args.Database.ConnectionString()))
+
 	return db, globalNopCloser, err
 }

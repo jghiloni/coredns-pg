@@ -13,7 +13,7 @@ import (
 	"gorm.io/gen"
 	"gorm.io/gen/field"
 
-	"github.com/jghiloni/coredns-pg/common/resolve"
+	"github.com/jghiloni/coredns-pg/common/resolve/records"
 
 	"github.com/jghiloni/coredns-pg/common/generated/tables"
 
@@ -135,7 +135,8 @@ type recordDo struct {
 type IRecordDo interface {
 	gen.IGenericsDo[IRecordDo, *tables.Record]
 	GetRecentlyDeleted(oldest time.Time) (result []tables.Record, err error)
-	ResolveRequest(request string, recordType resolve.RecordType) (result tables.Record, err error)
+	ResolveRequest(request string, recordType records.RecordType) (result tables.Record, err error)
+	ResolveRequests(request string, recordTypes ...records.RecordType) (result []tables.Record, err error)
 	GetZoneRecords(zone string) (result []tables.Record, err error)
 }
 
@@ -166,7 +167,7 @@ func (r recordDo) GetRecentlyDeleted(oldest time.Time) (result []tables.Record, 
 //	)
 //
 // ) LIMIT 1
-func (r recordDo) ResolveRequest(request string, recordType resolve.RecordType) (result tables.Record, err error) {
+func (r recordDo) ResolveRequest(request string, recordType records.RecordType) (result tables.Record, err error) {
 	var params []interface{}
 
 	var generateSQL strings.Builder
@@ -177,6 +178,32 @@ func (r recordDo) ResolveRequest(request string, recordType resolve.RecordType) 
 
 	var executeSQL *gorm.DB
 	executeSQL = r.UnderlyingDB().Raw(generateSQL.String(), params...).Take(&result) // ignore_security_alert
+	err = executeSQL.Error
+
+	return
+}
+
+// ResolveRequests
+//
+// SELECT r.* FROM records r INNER JOIN zones z ON r.zone = z.fqdn WHERE (
+//
+//	r.record_type IN @recordTypes AND r.deleted_at IS NULL AND z.deleted_at IS NULL AND
+//	(
+//		(r.name = '@' AND r.zone = @request) OR (@request LIKE REPLACE(r.name, '*', '%') || '.' || r.zone)
+//	)
+//
+// ) LIMIT 1
+func (r recordDo) ResolveRequests(request string, recordTypes ...records.RecordType) (result []tables.Record, err error) {
+	var params []interface{}
+
+	var generateSQL strings.Builder
+	params = append(params, recordTypes)
+	params = append(params, request)
+	params = append(params, request)
+	generateSQL.WriteString("SELECT r.* FROM records r INNER JOIN zones z ON r.zone = z.fqdn WHERE ( r.record_type IN ? AND r.deleted_at IS NULL AND z.deleted_at IS NULL AND ( (r.name = '@' AND r.zone = ?) OR (? LIKE REPLACE(r.name, '*', '%') || '.' || r.zone) ) ) LIMIT 1 ")
+
+	var executeSQL *gorm.DB
+	executeSQL = r.UnderlyingDB().Raw(generateSQL.String(), params...).Find(&result) // ignore_security_alert
 	err = executeSQL.Error
 
 	return
